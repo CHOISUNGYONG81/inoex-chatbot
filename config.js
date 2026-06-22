@@ -1,7 +1,7 @@
 // 제품명과 링크 매핑 — 실제 URL로 업데이트 필요
 const PRODUCT_LINKS = {
-  "IRIS tile":   "https://inoblock.com/iris-tile",
-  "MIRAGE tile": "https://inoblock.com/mirage-tile"
+  "IRIS tile":   "https://www.ino-ex.com/PRODUCT",
+  "MIRAGE tile": "https://www.ino-ex.com/PRODUCT"
 };
 
 const API_KEY_STORAGE = "inoex_api_key";
