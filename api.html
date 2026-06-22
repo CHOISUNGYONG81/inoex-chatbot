@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이노EX Q&A 챗봇</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- SheetJS for xlsx parsing -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+
+<div class="app-wrapper">
+
+  <!-- ===== Header ===== -->
+  <header class="app-header">
+    <div class="header-brand">
+      <div class="brand-icon">IN</div>
+      <div class="brand-text">
+        <span class="brand-name">이노EX</span>
+        <span class="brand-subtitle">Q&A 챗봇</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <!-- FAQ Upload -->
+      <div class="faq-upload-wrap">
+        <button class="btn-outline" id="faq-upload-btn"
+          onclick="document.getElementById('faq-file-input').click()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+            width="14" height="14" aria-hidden="true">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          FAQ 업로드
+        </button>
+        <input type="file" id="faq-file-input" accept=".xlsx" style="display:none" aria-hidden="true">
+        <span class="faq-status" id="faq-status">로딩 중...</span>
+      </div>
+
+      <!-- API Key -->
+      <button class="btn-primary" id="api-key-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          width="14" height="14" aria-hidden="true">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
+        </svg>
+        API 키
+      </button>
+    </div>
+  </header>
+
+  <!-- ===== Quick Questions Panel ===== -->
+  <div class="quick-panel" id="quick-panel">
+    <div class="quick-categories" id="quick-categories"></div>
+    <div class="quick-questions" id="quick-questions"></div>
+  </div>
+
+  <!-- ===== Chat Area ===== -->
+  <main class="chat-area" id="chat-area" role="log" aria-label="채팅창" aria-live="polite">
+    <div class="chat-messages" id="chat-messages">
+      <!-- Typing indicator — always last child -->
+      <div class="typing-indicator" id="typing-indicator" style="display:none" aria-label="답변 생성 중">
+        <div class="avatar" aria-hidden="true">IN</div>
+        <div class="typing-dots" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Drop Overlay (shown on file drag) -->
+  <div class="drop-overlay" id="drop-overlay-inner" style="display:none" aria-hidden="true">
+    <div class="drop-overlay-content">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+        width="64" height="64">
+        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+        <polyline points="17 8 12 3 7 8"/>
+        <line x1="12" y1="3" x2="12" y2="15"/>
+      </svg>
+      <p>FAQ xlsx 파일을 여기에 놓으세요</p>
+    </div>
+  </div>
+
+  <!-- ===== Input Area ===== -->
+  <footer class="input-area">
+    <div class="input-wrap">
+      <textarea
+        id="user-input"
+        placeholder="이노EX에 대해 궁금한 점을 물어보세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
+        rows="1"
+        aria-label="질문 입력"
+      ></textarea>
+      <button class="send-btn" id="send-btn" aria-label="전송">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+          width="18" height="18">
+          <line x1="22" y1="2" x2="11" y2="13"/>
+          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+        </svg>
+      </button>
+    </div>
+  </footer>
+
+</div><!-- /.app-wrapper -->
+
+<!-- ===== API Key Modal ===== -->
+<div class="modal-backdrop" id="api-key-modal" style="display:none" role="dialog"
+  aria-modal="true" aria-labelledby="modal-title">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">API 키 설정</h2>
+      <button class="modal-close" id="modal-close" aria-label="닫기">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="modal-desc">
+        <a href="https://console.anthropic.com" target="_blank" rel="noopener">Anthropic Console</a>에서
+        발급받은 API 키를 입력하세요.<br>
+        키는 이 브라우저의 로컬스토리지에만 저장되며 서버로 전송되지 않습니다.
+      </p>
+      <div class="input-group">
+        <label for="api-key-input">Anthropic API Key</label>
+        <input type="password" id="api-key-input"
+          placeholder="sk-ant-api03-..." class="text-input"
+          autocomplete="off" spellcheck="false">
+      </div>
+      <div id="api-key-status" class="api-status"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-modal-outline" id="modal-cancel">취소</button>
+      <button class="btn-modal-primary" id="save-api-key-btn">저장</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="faq-loader.js"></script>
+<script src="main.js"></script>
+</body>
+</html>

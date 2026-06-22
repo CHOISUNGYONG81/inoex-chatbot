@@ -1,139 +1,777 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>이노EX Q&A 챗봇</title>
-  <link rel="stylesheet" href="style.css">
-  <!-- SheetJS for xlsx parsing -->
-  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>포세린 타일 Q&A 챗봇</title>
+<style>
+:root {
+  --primary: #2563eb; --primary-dark: #1d4ed8; --primary-light: #eff6ff;
+  --primary-muted: #93c5fd; --bg: #f1f5f9; --bg-card: #fff;
+  --border: #e2e8f0; --text: #1e293b; --text-muted: #94a3b8;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,.06); --shadow-lg: 0 8px 24px rgba(0,0,0,.12);
+  --radius-sm: 8px; --radius-lg: 20px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; overflow: hidden; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR", sans-serif; font-size: 14px; color: var(--text); background: var(--bg); line-height: 1.6; }
+.app-wrapper { display: flex; flex-direction: column; height: 100vh; max-width: 900px; margin: 0 auto; background: var(--bg-card); box-shadow: var(--shadow-lg); }
+
+/* Header */
+.app-header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; flex-shrink: 0; }
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.brand-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; }
+.brand-name { font-weight: 700; font-size: 16px; }
+.brand-subtitle { font-size: 11px; opacity: .75; display: block; }
+.mode-badge { padding: 4px 12px; border-radius: 99px; background: rgba(34,197,94,.25); color: #86efac; font-size: 11px; font-weight: 700; }
+
+/* Quick Panel */
+.quick-panel { background: var(--primary-light); border-bottom: 1px solid var(--border); padding: 10px 16px; flex-shrink: 0; }
+.quick-categories { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.category-btn { padding: 4px 12px; border-radius: 99px; border: 1px solid var(--primary-muted); background: transparent; color: var(--primary); font-size: 12px; font-weight: 600; cursor: pointer; transition: all .15s; }
+.category-btn.active { background: var(--primary); border-color: var(--primary); color: #fff; }
+.quick-questions { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick-q-btn { padding: 5px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--bg-card); color: var(--text); font-size: 12px; cursor: pointer; transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 300px; }
+.quick-q-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+
+/* Chat */
+.chat-area { flex: 1; overflow-y: auto; padding: 20px 16px; display: flex; flex-direction: column; gap: 16px; scroll-behavior: smooth; }
+.chat-area::-webkit-scrollbar { width: 4px; }
+.chat-area::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+.message { display: flex; gap: 10px; animation: fadeIn .2s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+.message.assistant { align-items: flex-start; }
+.message.assistant .avatar { width: 32px; height: 32px; border-radius: var(--radius-sm); background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; margin-top: 2px; }
+.message.assistant .bubble { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg); padding: 12px 16px; box-shadow: var(--shadow-sm); max-width: calc(100% - 42px); }
+.message.user { flex-direction: row-reverse; align-items: flex-end; }
+.message.user .bubble { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-radius: var(--radius-lg) var(--radius-lg) 0 var(--radius-lg); padding: 12px 16px; color: #fff; max-width: 75%; word-break: break-word; }
+.bubble p { margin: 0 0 8px; }
+.bubble p:last-child { margin-bottom: 0; }
+.bubble strong { font-weight: 600; }
+.bubble ul, .bubble ol { padding-left: 20px; margin: 6px 0; }
+.bubble li { margin: 3px 0; }
+.bubble table { width: 100%; border-collapse: collapse; font-size: 12px; margin: 8px 0; }
+.bubble th { background: var(--primary-light); color: var(--primary); padding: 5px 8px; text-align: left; border: 1px solid var(--border); font-weight: 600; }
+.bubble td { padding: 5px 8px; border: 1px solid var(--border); }
+.bubble tr:nth-child(even) td { background: #f8fafc; }
+
+/* 명확화 선택 버튼 */
+.clarify-intro { font-size: 13px; margin-bottom: 10px; line-height: 1.6; }
+.clarify-intro strong { color: var(--primary); }
+.clarify-options { display: flex; flex-direction: column; gap: 6px; }
+.clarify-btn {
+  text-align: left; padding: 9px 14px;
+  border-radius: var(--radius-sm); border: 1px solid var(--primary-muted);
+  background: var(--primary-light); color: var(--primary);
+  font-size: 13px; font-family: inherit; line-height: 1.4;
+  cursor: pointer; transition: all .15s; display: flex; align-items: flex-start; gap: 8px;
+}
+.clarify-btn::before {
+  content: "›"; font-size: 16px; font-weight: 700; flex-shrink: 0;
+  line-height: 1.3; color: var(--primary-muted);
+}
+.clarify-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+.clarify-btn:hover::before { color: rgba(255,255,255,.7); }
+.clarify-btn:disabled { opacity: .45; cursor: not-allowed; pointer-events: none; }
+.clarify-cat-header {
+  font-size: 11px; font-weight: 700; color: var(--text-muted); letter-spacing: .4px;
+  margin: 10px 0 4px; padding: 4px 0; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 6px;
+}
+.clarify-cat-header::before {
+  content: ""; width: 3px; height: 12px;
+  border-radius: 2px; background: var(--primary-muted); flex-shrink: 0;
+}
+.clarify-cat-header:first-child { margin-top: 4px; }
+
+/* Product links */
+.message-footer { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; margin-left: 42px; }
+.product-links-label { font-size: 11px; color: var(--text-muted); font-weight: 500; }
+.product-links { display: flex; gap: 6px; flex-wrap: wrap; }
+.product-link { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 99px; background: var(--primary-light); border: 1px solid var(--primary-muted); color: var(--primary); font-size: 11px; font-weight: 600; text-decoration: none; transition: all .15s; }
+.product-link:hover { background: var(--primary); color: #fff; }
+.product-link::after { content: "↗"; font-size: 10px; }
+
+/* Typing */
+.typing-indicator { display: flex; align-items: center; gap: 10px; }
+.typing-indicator .avatar { width: 32px; height: 32px; border-radius: var(--radius-sm); background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+.typing-dots { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg); padding: 12px 16px; display: flex; gap: 5px; align-items: center; }
+.typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--primary-muted); display: inline-block; animation: bounce 1.2s infinite; }
+.typing-dots span:nth-child(2) { animation-delay: .2s; }
+.typing-dots span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce { 0%,60%,100% { transform:translateY(0); opacity:.4; } 30% { transform:translateY(-6px); opacity:1; } }
+
+/* Input */
+.input-area { padding: 12px 16px; background: var(--bg-card); border-top: 1px solid var(--border); flex-shrink: 0; }
+.input-wrap { display: flex; align-items: flex-end; gap: 8px; background: var(--bg); border: 1.5px solid var(--border); border-radius: var(--radius-lg); padding: 8px 8px 8px 16px; transition: border-color .15s, box-shadow .15s; }
+.input-wrap:focus-within { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,.1); }
+#user-input { flex: 1; border: none; background: transparent; resize: none; font-size: 14px; font-family: inherit; color: var(--text); line-height: 1.5; max-height: 120px; outline: none; }
+#user-input::placeholder { color: var(--text-muted); }
+.send-btn { width: 36px; height: 36px; border-radius: var(--radius-sm); border: none; background: var(--primary); color: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background .15s, transform .1s; flex-shrink: 0; }
+.send-btn:hover { background: var(--primary-dark); }
+.send-btn:active { transform: scale(.95); }
+.send-btn:disabled { background: var(--text-muted); cursor: not-allowed; }
+@media (max-width: 600px) { .quick-q-btn { max-width: 220px; } .message-footer { margin-left: 0; } }
+</style>
 </head>
 <body>
-
 <div class="app-wrapper">
-
-  <!-- ===== Header ===== -->
   <header class="app-header">
     <div class="header-brand">
       <div class="brand-icon">IN</div>
-      <div class="brand-text">
-        <span class="brand-name">이노EX</span>
-        <span class="brand-subtitle">Q&A 챗봇</span>
+      <div style="display:flex;flex-direction:column;line-height:1.2;">
+        <span class="brand-name">포세린 타일</span>
+        <span class="brand-subtitle">시공 Q&A 챗봇</span>
       </div>
     </div>
-
-    <div class="header-actions">
-      <!-- FAQ Upload -->
-      <div class="faq-upload-wrap">
-        <button class="btn-outline" id="faq-upload-btn"
-          onclick="document.getElementById('faq-file-input').click()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-            width="14" height="14" aria-hidden="true">
-            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          FAQ 업로드
-        </button>
-        <input type="file" id="faq-file-input" accept=".xlsx" style="display:none" aria-hidden="true">
-        <span class="faq-status" id="faq-status">로딩 중...</span>
-      </div>
-
-      <!-- API Key -->
-      <button class="btn-primary" id="api-key-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-          width="14" height="14" aria-hidden="true">
-          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-        </svg>
-        API 키
-      </button>
-    </div>
+    <span class="mode-badge">● 유사검색 엔진</span>
   </header>
 
-  <!-- ===== Quick Questions Panel ===== -->
-  <div class="quick-panel" id="quick-panel">
+  <div class="quick-panel">
     <div class="quick-categories" id="quick-categories"></div>
-    <div class="quick-questions" id="quick-questions"></div>
+    <div class="quick-questions"  id="quick-questions"></div>
   </div>
 
-  <!-- ===== Chat Area ===== -->
-  <main class="chat-area" id="chat-area" role="log" aria-label="채팅창" aria-live="polite">
-    <div class="chat-messages" id="chat-messages">
-      <!-- Typing indicator — always last child -->
-      <div class="typing-indicator" id="typing-indicator" style="display:none" aria-label="답변 생성 중">
-        <div class="avatar" aria-hidden="true">IN</div>
-        <div class="typing-dots" aria-hidden="true">
-          <span></span><span></span><span></span>
-        </div>
+  <main class="chat-area" id="chat-area">
+    <div id="chat-messages">
+      <div class="typing-indicator" id="typing-indicator" style="display:none">
+        <div class="avatar">IN</div>
+        <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
     </div>
   </main>
 
-  <!-- Drop Overlay (shown on file drag) -->
-  <div class="drop-overlay" id="drop-overlay-inner" style="display:none" aria-hidden="true">
-    <div class="drop-overlay-content">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
-        width="64" height="64">
-        <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-        <polyline points="17 8 12 3 7 8"/>
-        <line x1="12" y1="3" x2="12" y2="15"/>
-      </svg>
-      <p>FAQ xlsx 파일을 여기에 놓으세요</p>
-    </div>
-  </div>
-
-  <!-- ===== Input Area ===== -->
   <footer class="input-area">
     <div class="input-wrap">
-      <textarea
-        id="user-input"
-        placeholder="이노EX에 대해 궁금한 점을 물어보세요... (Enter로 전송, Shift+Enter로 줄바꿈)"
-        rows="1"
-        aria-label="질문 입력"
-      ></textarea>
-      <button class="send-btn" id="send-btn" aria-label="전송">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
-          width="18" height="18">
-          <line x1="22" y1="2" x2="11" y2="13"/>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+      <textarea id="user-input" rows="1"
+        placeholder="키워드(강도, 접착제, 각관…) 또는 질문을 입력하세요 (Enter 전송)"></textarea>
+      <button class="send-btn" id="send-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" width="18" height="18">
+          <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
         </svg>
       </button>
     </div>
   </footer>
-
-</div><!-- /.app-wrapper -->
-
-<!-- ===== API Key Modal ===== -->
-<div class="modal-backdrop" id="api-key-modal" style="display:none" role="dialog"
-  aria-modal="true" aria-labelledby="modal-title">
-  <div class="modal">
-    <div class="modal-header">
-      <h2 id="modal-title">API 키 설정</h2>
-      <button class="modal-close" id="modal-close" aria-label="닫기">&times;</button>
-    </div>
-    <div class="modal-body">
-      <p class="modal-desc">
-        <a href="https://console.anthropic.com" target="_blank" rel="noopener">Anthropic Console</a>에서
-        발급받은 API 키를 입력하세요.<br>
-        키는 이 브라우저의 로컬스토리지에만 저장되며 서버로 전송되지 않습니다.
-      </p>
-      <div class="input-group">
-        <label for="api-key-input">Anthropic API Key</label>
-        <input type="password" id="api-key-input"
-          placeholder="sk-ant-api03-..." class="text-input"
-          autocomplete="off" spellcheck="false">
-      </div>
-      <div id="api-key-status" class="api-status"></div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn-modal-outline" id="modal-cancel">취소</button>
-      <button class="btn-modal-primary" id="save-api-key-btn">저장</button>
-    </div>
-  </div>
 </div>
 
-<script src="config.js"></script>
-<script src="faq-loader.js"></script>
-<script src="main.js"></script>
+<script>
+/* =====================================================
+   포세린 타일 Q&A 챗봇 — 25개 항목 전체
+   키워드 입력: 관련 Q&A 다건 카드
+   질문 입력:   최적 단일 답변
+   ===================================================== */
+
+const PRODUCT_LINKS = {
+  "IRIS tile":   "https://inoblock.com/iris-tile",
+  "MIRAGE tile": "https://inoblock.com/mirage-tile"
+};
+
+/* ── FAQ 전체 데이터 (25개) ──────────────────────────── */
+const FAQ = [
+
+  /* ═══ 재료 ═══ */
+  {
+    no:1, category:"재료",
+    question:"야외 바닥용 석재와 타일의 가장 큰 차이점이 무엇인가요?",
+    answer:"석재에 비해 타일은 두께가 얇아 경량구조가 가능하며, 흡수율이 1% 이하로 장기 내구성능이 탁월합니다.\n석재에 비해 휨강도 성능이 뛰어나 두께를 20mm로 경량화할 수 있습니다.",
+    tags:["석재","타일","비교","차이","경량","흡수율","장점","포세린","휨강도","재료"],
+    aliases:["석재랑 타일 차이","타일이 석재보다 나은 이유","포세린 타일 특징","타일 장점","타일 흡수율","경량구조 차이"]
+  },
+  {
+    no:11, category:"재료",
+    question:"외부에서는 어떤 종류의 타일을 써야 되나요?",
+    answer:"외부 사용 시 필요한 타일 조건:\n- 흡수율 1% 이하 (동해 방지, 내구성 확보)\n- 높은 휨강도 및 내충격성\n- 낮은 열팽창계수 (온도 변화에 강함)\n- 미끄럼 방지 성능 (R값 기준 충족)\n포세린 타일은 이러한 외부 환경 조건을 충족하는 최적의 선택입니다.",
+    tags:["외부","종류","선택","흡수율","내구성","온도","충격","미끄럼","재료","포세린","조건","열팽창","논슬립","동결융해"],
+    aliases:["외부용 타일","야외 타일 종류","외부 사용 타일","어떤 타일 써야","외부 타일 조건","야외용 타일"]
+  },
+
+  /* ═══ 습식시공 ═══ */
+  {
+    no:2, category:"습식시공",
+    question:"습식으로 바닥 설치할때 보호모르타르(누름콘크리트·보호스크리드) 층의 두께는 어느정도가 적당한가요?",
+    answer:"접착 모르타르: 25~40mm\n비접착 모르타르: 50mm 이상",
+    tags:["두께","모르타르","누름콘크리트","스크리드","하지","설치","바닥","습식"],
+    aliases:["모르타르 두께","누름콘크리트 두께","하지 두께","바닥 두께","스크리드 두께","얼마나 두껍게","몇 mm 모르타르"]
+  },
+  {
+    no:3, category:"습식시공",
+    question:"습식으로 바닥 공사할때 타일의 줄눈 간격 기준을 알려줘.",
+    answer:"일반적인 외장 타일의 줄눈 간격은 1.5~3mm 사이입니다.\n심미적으로는 2mm 줄눈을 선호합니다.",
+    tags:["줄눈","간격","폭","너비","외장","틈새","습식"],
+    aliases:["줄눈 간격","줄눈 크기","타일 사이 간격","줄눈 기준","몇 mm 줄눈","줄눈 폭","줄눈 너비"]
+  },
+  {
+    no:4, category:"습식시공",
+    question:"습식 보호모르타르의 압축강도는 어느정도가 적정한가요?",
+    answer:"20~25MPa\n바탕고름용 레미탈 또는 무수축 그라우트를 추천합니다.",
+    tags:["압축강도","강도","MPa","레미탈","그라우트","무수축","모르타르","습식"],
+    aliases:["모르타르 강도","압축강도 기준","바탕 강도","레미탈 추천","무수축 그라우트","MPa 기준","얼마나 단단한 모르타르"]
+  },
+  {
+    no:5, category:"습식시공",
+    question:"배수구로의 구배는 어떻게 구성해야 하나요?",
+    answer:"1미터에 10mm의 구배로 진행합니다. (기울기 1%)",
+    tags:["구배","배수","경사","기울기","물빠짐","습식"],
+    aliases:["배수 구배","물빠짐 경사","구배 기준","기울기 기준","배수로 설계","경사 기준","1% 구배","배수 경사"]
+  },
+  {
+    no:6, category:"습식시공",
+    question:"타일과 모르타르면을 습식으로 부착할때 사용하는 접착제는 어떤 것인가요?",
+    answer:"모르타르 위에 타일 직접 부착은 절대 불가합니다. (흡수율이 낮아 부착력이 매우 떨어짐)\n전용 접착제를 사용해야 하며, 제품 등급 기준 C2TES1 이상을 권장합니다.",
+    tags:["접착제","C2TES1","등급","강도","부착력","전용","종류","선택","주의","습식"],
+    aliases:["어떤 접착제","접착제 종류","접착제 선택","접착제 추천","C2TES1","접착제 등급","전용 접착제","모르타르에 직접 붙이면"]
+  },
+  {
+    no:7, category:"습식시공",
+    question:"접착제 부착 순서에 대해 알려줘요.",
+    answer:"1. 모르타르 상부의 적정한 수분을 도포한 후 프라이머 도포\n2. 프라이머 도포 후 건조된 후 접착제 도포\n3. 접착제 도포 후 타일 부착",
+    tags:["순서","시공","프라이머","접착제","부착","방법","단계","설치","습식"],
+    aliases:["타일 시공 순서","타일 붙이는 방법","시공 방법","설치 순서","부착 순서","어떻게 붙이나","프라이머 언제","타일 작업 순서"]
+  },
+  {
+    no:8, category:"습식시공",
+    question:"접착제 교반, 믹싱에 대해 설명해줘요.",
+    answer:"물 배합 비율: 중량 대비 약 20~30% 범위로 산정\n부피비 기준: 분말과 물을 3:1~4:1(분말:물)로 배합\n외기온도에 따라 물 배합량을 기준 내에서 조정하여 반죽 질기를 맞춥니다.\n1차 반죽 후 5분 정도 대기(화학반응 활성화)한 뒤 2차 교반을 진행합니다.",
+    tags:["교반","믹싱","반죽","배합","비율","혼합","분말","물","습식"],
+    aliases:["접착제 섞는 방법","물 얼마나","배합 비율","반죽 방법","교반 방법","어떻게 섞어","물 비율","1차 반죽","2차 교반"]
+  },
+  {
+    no:9, category:"습식시공",
+    question:"작업 가능한 외기온도는 어떻게 되나요?",
+    answer:"영상 5도 이하: 작업 불가\n영상 35도 이상: 현장 여건 확인 후 작업",
+    tags:["온도","기온","날씨","겨울","여름","작업불가","영상","습식"],
+    aliases:["몇 도에서 작업","온도 제한","날씨 조건","겨울 작업","여름 시공","기온 기준","작업 온도","영하에서 작업"]
+  },
+  {
+    no:10, category:"습식시공",
+    question:"접착제 확인 사항(오픈타임·조정시간·그라우팅·포트라이프)을 설명해줘요.",
+    answer:"오픈타임: 도포 후 타일이 접착력을 유지하는 시간\n조정시간: 타일 부착 후 약간의 움직임이 가능한 시간\n그라우팅: 줄눈 작업 전에 대기하여야 하는 시간\n포트라이프: 믹싱버킷에 담긴 접착제의 최대 작업 시간",
+    tags:["오픈타임","조정시간","포트라이프","그라우팅","주의","용어","시간","접착제","습식"],
+    aliases:["접착제 주의사항","접착제 사용 주의","오픈타임","조정시간","포트라이프","접착제 용어","얼마나 기다려야","언제 줄눈 작업","접착제 확인"]
+  },
+  {
+    no:12, category:"습식시공",
+    question:"접착제의 등급 사항에 대해 알려줘요.",
+    answer:"C2: 고성능 시멘트계 접착제 (일반 C1보다 높은 접착 성능)\nT: 미끄럼 저항성 — 수직면·경사면 타일 시공에 적합, 처짐 방지\nE: 연장된 오픈타임 — 여름철 외부 시공 등 시간이 더 필요한 경우 사용\nS1: 변형성 2~5mm — 외부 공간의 구조적 변화에 대응 가능\nS2: 고변형성 5mm 이상 — 고하중, 진동, 대형 프로젝트 조건에 사용 검토",
+    tags:["등급","C2","T등급","S1","S2","E등급","성능","접착제","습식","고성능"],
+    aliases:["접착제 등급","등급 기준","C2 접착제","S1 S2 차이","접착제 분류","어떤 등급","등급 설명","접착제 종류 등급"]
+  },
+  {
+    no:13, category:"습식시공",
+    question:"타일을 부착할때 방식은 어떻게 하나요?",
+    answer:"1단계: 접착제를 바르기 전 스킨코트(얇게 펴 바름)로 모르타르면 처리\n2단계: 빗형 트로웰로 접착제를 빗방향으로 도포 (톱니형으로 긁어 바름)\n3단계: 타일 배면에 백버터링(타일 뒷면에 접착제 얇게 펴 바름) 후 비빔 압착\n4단계: 타일을 상하로 비비면서 조금씩 눌러 부착·압착하여 완전 접착",
+    tags:["방식","부착방식","스킨코트","백버터링","트로웰","압착","비빔","습식","단계"],
+    aliases:["타일 부착 방법","어떻게 붙여","백버터링","스킨코트","접착 방식","부착 방식","타일 붙이는 방식","압착 방법"]
+  },
+  {
+    no:14, category:"습식시공",
+    question:"타일 접착제(본드)의 접착 두께는 어떻게 되나요?",
+    answer:"타일 규격 100~300mm: 빗 바름 6~8mm → 압착 후 두께 약 3mm\n타일 규격 400~600mm: 빗 바름 10~12mm → 압착 후 두께 약 5~6mm\n일반적으로 타일 접착면 도포 두께는 3~6mm를 유지합니다.",
+    tags:["접착두께","두께","도포두께","본드두께","바름두께","압착두께","접착제","습식","mm"],
+    aliases:["접착제 두께","본드 두께","도포 두께","얼마나 두껍게 바름","접착 두께 기준","몇 mm 바르나","접착제 도포 두께"]
+  },
+  {
+    no:15, category:"습식시공",
+    question:"접착제의 접착 범위는 어떻게 하나요?",
+    answer:"실내 및 건조한 공간: 최소 80% 이상 접착\n외부 및 습한 공간: 최소 95% 이상 접착",
+    tags:["접착범위","범위","커버리지","80%","95%","접착제","실내","외부","습식"],
+    aliases:["접착 범위","접착 면적","몇 % 접착","커버리지 기준","접착면 비율","얼마나 붙여야","접착 커버리지"]
+  },
+
+  /* ═══ 건식시공 ═══ */
+  {
+    no:16, category:"건식시공",
+    question:"일반적인 아연 각관 규격은 어떻게 하나요?",
+    answer:"추천 아연 각관 규격:\n- 주거용 테라스/보행/낮은 데크: 50×50×2.3T 이상\n- 이노 아연 각관 표준 권장: 50×50×3.2T\n- 상업공간/관리/사람 통행 일반: 50×50×3.5T 또는 75×45×3.2T\n- 장스팬/높은 데크/들뜸 우려: 75×75×3.5T 이상 검토\n※ 저관리 환경의 일반 각관 사용 금지 — 구조검토 필요",
+    tags:["각관","아연","규격","건식","데크","장선","50x50","75x75","두께","건식시공"],
+    aliases:["아연 각관 규격","각관 사이즈","각관 크기","각관 두께","아연각관","각관 규격 기준","어떤 각관","각관 선택"]
+  },
+  {
+    no:17, category:"건식시공",
+    question:"장선 간격은 어떻게 하나요?",
+    answer:"대형·장방형 타일일수록 장선 간격을 좁게 설치해야 합니다.\n간격이 넓으면 타일 모서리에 응력이 집중되어 파손 위험이 있습니다.\n줄눈 위치와 장선 간격을 맞추어 타일 모서리가 장선 위에 위치하도록 배치하는 것이 이상적입니다.",
+    tags:["장선","간격","장선간격","건식","각관","응력","파손","배치","건식시공"],
+    aliases:["장선 간격","장선 거리","장선 설치","간격 기준","장선 배치","장선 얼마나","장선 간격 기준","장선 폭"]
+  },
+  {
+    no:18, category:"건식시공",
+    question:"아연 각관의 고정 방식은 어떻게 하나요?",
+    answer:"일반적으로 용접 방식이 기본이며, 환경에 따라 앙카, 브라켓, 볼트 등 다양한 방식을 적용합니다.\n중첩되는 이음부(겹침 이음)의 방향에 주의하여 고정해야 합니다.",
+    tags:["고정","방식","용접","앙카","브라켓","볼트","건식","각관","이음","건식시공"],
+    aliases:["각관 고정","고정 방식","용접 고정","앙카 고정","브라켓 고정","어떻게 고정","고정 방법","각관 설치 방법"]
+  },
+  {
+    no:19, category:"건식시공",
+    question:"아연 각관 시공에서 스페이서의 기준은 어떻게 되나요?",
+    answer:"심 스페이서: 줄눈 폭 유지 및 타일 위치 기준 형성 (3~5mm 계획 줄눈 폭 내에서 타일 위치 조정 허용)\n코너 스페이서: 타일 귀퉁이의 높이와 간격 유지, 코너 지지점을 정확히 형성하여 흔들림 방지",
+    tags:["스페이서","줄눈","심스페이서","코너스페이서","건식","각관","위치","간격","건식시공"],
+    aliases:["스페이서 기준","스페이서 종류","스페이서 사용","줄눈 스페이서","코너 스페이서","스페이서 역할","스페이서 설치"]
+  },
+  {
+    no:20, category:"건식시공",
+    question:"아연 각관 시공에서 패드의 기준은 어떻게 되나요?",
+    answer:"EPDM 고무패드: 타일과 금속 프레임 사이에 설치하는 완충재입니다.\n- 충격 흡수 및 완충\n- 미끄럼 방지\n- 소음 저감\n- 누수 방지 및 이탈 방지",
+    tags:["패드","EPDM","고무패드","완충","소음","누수","건식","각관","이탈방지","건식시공"],
+    aliases:["EPDM 패드","고무패드 기준","패드 역할","패드 기준","패드 설치","완충 패드","패드 사용","패드 종류"]
+  },
+  {
+    no:21, category:"건식시공",
+    question:"아연 각관 시공에서 단부 클립의 기준은 어떻게 되나요?",
+    answer:"외곽 타일의 이탈·들뜸을 방지하는 고정 클립입니다.\n사용 위치: 외곽부, 끝단 타일, 계단식 단자부에 필수 적용",
+    tags:["클립","단부클립","이탈방지","들뜸","외곽","끝단","계단","건식","각관","건식시공"],
+    aliases:["단부 클립","클립 기준","이탈 방지 클립","들뜸 방지","외곽 클립","끝단 클립","클립 사용","클립 설치"]
+  },
+  {
+    no:22, category:"건식시공",
+    question:"아연 각관 시공에서 접착제의 기준은 어떻게 되나요?",
+    answer:"MS폴리머 계열 접착제를 사용합니다.\n- 진동 흡수, 미세 움직임에 의한 소음 저감\n- 외부·금속·세라믹 면에 모두 적용 가능\n- 보조 고정 역할 (구조 지지용으로는 사용 불가)\n구조 접착제로는 사용하지 않으며, 클립·볼트와 병행 사용합니다.",
+    tags:["MS폴리머","접착제","건식","각관","보조고정","진동","소음","세라믹","건식시공"],
+    aliases:["건식 접착제","MS폴리머 접착제","각관 접착제","건식 시공 접착제","보조 접착제","접착제 기준 건식"]
+  },
+  {
+    no:23, category:"건식시공",
+    question:"아연 각관 시공에서 접착제의 적용 기준은 어떻게 되나요?",
+    answer:"MS폴리머 본드 적용 기준:\n<table><tr><th>항목</th><th>적용 여부</th></tr><tr><td>단면(타일 뒷면)</td><td>기본 적용</td></tr><tr><td>다면(복수 접합부)</td><td>중요 — 양면 도포</td></tr><tr><td>줄눈 충전 이용</td><td>검토 적용</td></tr><tr><td>완충 처리</td><td>중요</td></tr><tr><td>배수 방향</td><td>검토 필요</td></tr><tr><td>이음·결합부</td><td>필수 적용</td></tr><tr><td>유리·투명부</td><td>소포 처리 후 적용</td></tr></table>",
+    tags:["MS폴리머","접착제","적용기준","건식","각관","접착제기준","단면","다면","이음","건식시공"],
+    aliases:["접착제 적용 기준","MS 본드 기준","언제 접착제","접착제 어디에","건식 접착 기준","적용 기준 건식"]
+  },
+  {
+    no:24, category:"건식시공",
+    question:"아연 각관 시공에서 고정 방식 선택 기준은 어떻게 되나요?",
+    answer:"고정 방식 선택 기준:\n<table><tr><th>조건</th><th>고정 방법</th><th>관련 소견</th></tr><tr><td>평탄 면적</td><td>클립 고정 기본</td><td>균등 배치 중요</td></tr><tr><td>외부 노출</td><td>볼트/앙카 강화</td><td>부식 방지 재질 선택</td></tr><tr><td>경사 설치</td><td>브라켓 추가</td><td>슬라이딩 방지</td></tr><tr><td>일반 타일</td><td>클립 + 본드 병용</td><td>보조 고정 확보</td></tr><tr><td>코너·끝단</td><td>단부클립 필수</td><td>이탈 방지</td></tr></table>",
+    tags:["고정방식선택","선택기준","클립","볼트","앙카","브라켓","고정","방식","건식","각관","건식시공"],
+    aliases:["고정 방식 기준","어떤 고정","고정 선택","클립 언제","볼트 언제","브라켓 언제","고정 방식 선택 기준"]
+  },
+  {
+    no:25, category:"건식시공",
+    question:"아연 각관 시공에서 배수 및 신축 조인트 기준은 어떻게 되나요?",
+    answer:"배수 및 신축 조인트 기준:\n<table><tr><th>위치</th><th>최소 기준</th><th>적합 소재</th></tr><tr><td>실내 평면부</td><td>줄눈재 기준</td><td>줄눈재 또는 실리콘</td></tr><tr><td>외부 평면부</td><td>3~5mm 줄눈</td><td>외부용 실리콘 권장</td></tr><tr><td>코너부</td><td>5mm 이상</td><td>외부용 실리콘 필수</td></tr><tr><td>구조 연결부</td><td>변형 흡수 처리</td><td>변형 흡수 실리콘</td></tr><tr><td>배수구 주변</td><td>방수 처리 우선</td><td>방수재 후 실리콘</td></tr></table>",
+    tags:["조인트","배수","신축","실리콘","건식","각관","코너","배수조인트","신축줄눈","방수","줄눈재","이음","건식시공"],
+    aliases:["배수 조인트","신축 조인트","조인트 기준","실리콘 기준","배수 처리","신축줄눈","조인트 소재","줄눈 조인트"]
+  }
+];
+
+/* ── 키워드 → 태그 확장 맵 ─────────────────────────── */
+const KEYWORD_MAP = {
+  /* 강도 계열 */
+  "강도":      ["강도","압축강도","MPa","부착력","등급","C2"],
+  "압축강도":  ["압축강도","강도","MPa"],
+  "MPa":       ["MPa","압축강도"],
+  "부착력":    ["부착력","강도","접착제"],
+  "성능":      ["강도","등급","C2","부착력"],
+
+  /* 접착제 계열 */
+  "접착제":    ["접착제"],
+  "접착":      ["접착제","부착"],
+  "부착":      ["부착","접착제","순서"],
+  "C2":        ["C2","등급","C2TES1"],
+  "C2TES1":   ["C2TES1","등급"],
+  "등급":      ["등급","C2","강도","S1","S2"],
+  "S1":        ["S1","S2","등급"],
+  "S2":        ["S2","S1","등급"],
+  "전용":      ["전용","접착제"],
+  "프라이머":  ["프라이머","순서"],
+  "MS폴리머":  ["MS폴리머","접착제","건식"],
+  "MS":        ["MS폴리머","접착제","건식"],
+
+  /* 도포/두께 계열 */
+  "두께":      ["두께","모르타르","접착두께","바름두께"],
+  "도포":      ["두께","접착두께","도포두께"],
+  "바름":      ["두께","접착두께","도포두께"],
+  "본드":      ["접착두께","접착제","MS폴리머"],
+
+  /* 시공 방식 계열 */
+  "시공":      ["시공"],
+  "순서":      ["순서","시공","단계","방식"],
+  "방법":      ["방법","순서","시공","부착방식"],
+  "설치":      ["설치","두께","순서"],
+  "단계":      ["단계","순서","방식"],
+  "방식":      ["방식","부착방식","고정","스킨코트"],
+  "스킨코트":  ["스킨코트","백버터링","방식"],
+  "백버터링":  ["백버터링","스킨코트","방식"],
+  "트로웰":    ["트로웰","백버터링","방식"],
+  "압착":      ["압착","방식","두께"],
+  "비빔":      ["비빔","압착","방식"],
+
+  /* 모르타르 계열 */
+  "모르타르":  ["모르타르","두께","강도","압축강도"],
+  "스크리드":  ["스크리드","두께"],
+  "누름콘크리트":["누름콘크리트","두께"],
+  "레미탈":    ["레미탈","강도"],
+  "그라우트":  ["그라우트","강도"],
+
+  /* 줄눈 계열 */
+  "줄눈":      ["줄눈","간격","폭","스페이서","그라우팅","조인트"],
+  "간격":      ["간격","줄눈","장선간격"],
+  "폭":        ["폭","줄눈","간격"],
+
+  /* 구배/배수 계열 */
+  "구배":      ["구배","배수"],
+  "배수":      ["배수","구배","배수조인트"],
+  "경사":      ["경사","구배"],
+  "기울기":    ["기울기","구배","경사"],
+  "물빠짐":    ["물빠짐","배수","구배"],
+
+  /* 온도/날씨 계열 */
+  "온도":      ["온도","기온"],
+  "기온":      ["기온","온도"],
+  "날씨":      ["날씨","온도"],
+  "겨울":      ["겨울","온도"],
+  "여름":      ["여름","온도"],
+
+  /* 교반/믹싱 계열 */
+  "교반":      ["교반","믹싱"],
+  "믹싱":      ["믹싱","교반"],
+  "반죽":      ["반죽","교반"],
+  "배합":      ["배합","교반","비율"],
+  "비율":      ["비율","배합"],
+  "분말":      ["분말","배합"],
+
+  /* 오픈타임/주의 계열 */
+  "오픈타임":  ["오픈타임"],
+  "조정시간":  ["조정시간"],
+  "포트라이프":["포트라이프"],
+  "그라우팅":  ["그라우팅","줄눈"],
+  "주의":      ["주의","오픈타임","용어"],
+  "확인":      ["주의","오픈타임","용어"],
+  "용어":      ["용어","오픈타임"],
+
+  /* 접착 범위 계열 */
+  "범위":      ["범위","접착범위","커버리지"],
+  "커버리지":  ["커버리지","접착범위"],
+  "면적":      ["접착범위","커버리지"],
+
+  /* 건식시공 계열 */
+  "건식":      ["건식","각관","장선"],
+  "각관":      ["각관","건식","규격","아연"],
+  "아연":      ["아연","각관","건식"],
+  "장선":      ["장선","간격","장선간격"],
+  "스페이서":  ["스페이서","줄눈","코너스페이서"],
+  "패드":      ["패드","EPDM"],
+  "EPDM":      ["EPDM","패드"],
+  "클립":      ["클립","단부클립","이탈방지"],
+  "단부":      ["단부클립","클립"],
+  "이탈":      ["이탈방지","클립","단부클립"],
+  "들뜸":      ["이탈방지","클립","단부클립"],
+  "고정":      ["고정","방식","용접","앙카","브라켓"],
+  "용접":      ["용접","고정"],
+  "앙카":      ["앙카","고정"],
+  "브라켓":    ["브라켓","고정"],
+  "볼트":      ["볼트","고정"],
+  "조인트":    ["조인트","배수조인트","신축줄눈"],
+  "신축":      ["신축줄눈","조인트"],
+  "실리콘":    ["실리콘","조인트","배수조인트","방수"],
+  "규격":      ["규격","각관","50x50","75x75"],
+  "데크":      ["데크","각관","규격"],
+  "소음":      ["소음","패드","EPDM","MS폴리머"],
+  "완충":      ["완충","패드","EPDM"],
+
+  /* 재료/외부 타일 계열 */
+  "석재":      ["석재","비교","차이"],
+  "외부":      ["외부","외부용","외장","논슬립","동결융해"],
+  "외장":      ["외장","외부"],
+  "흡수율":    ["흡수율","내구성","외부"],
+  "경량":      ["경량"],
+  "미끄럼":    ["미끄럼","외부","논슬립"],
+  "충격":      ["충격","외부"],
+  "비교":      ["비교","차이","석재"],
+  "차이":      ["차이","비교","석재"],
+  "포세린":    ["포세린","재료","외부","흡수율"],
+  "타일":      ["재료","타일","외부"],
+  "휨강도":    ["휨강도","강도","재료"],
+  "내구성":    ["내구성","흡수율","외부","재료"],
+  "논슬립":    ["논슬립","미끄럼","외부"],
+  "동결융해":  ["동결융해","내구성","외부","온도"],
+  "열팽창":    ["열팽창","온도","외부","내구성"],
+  "무수축":    ["무수축","그라우트","강도"],
+
+  /* 배수/방수/조인트 계열 (재료·건식 공통) */
+  "방수":      ["방수","배수조인트","실리콘","외부","누수"],
+  "이음":      ["이음","조인트","신축줄눈","배수조인트"],
+  "줄눈재":    ["줄눈재","줄눈","조인트","실리콘"],
+  "환기":      ["환기","배수","구배"],
+};
+
+/* ── 검색 엔진 ─────────────────────────────────────── */
+function ngrams(text, n) {
+  const s = text.replace(/\s+/g,"").toLowerCase();
+  const g = [];
+  for (let i = 0; i <= s.length - n; i++) g.push(s.slice(i, i+n));
+  return g;
+}
+function jaccard(a, b) {
+  const sa = new Set(a), sb = new Set(b);
+  let inter = 0;
+  sa.forEach(x => { if (sb.has(x)) inter++; });
+  const u = sa.size + sb.size - inter;
+  return u > 0 ? inter / u : 0;
+}
+
+function expandQuery(query) {
+  const tokens = query.toLowerCase()
+    .replace(/[?？.,!~]/g," ").split(/\s+/).filter(t => t.length >= 1);
+  const expanded = new Set();
+  tokens.forEach(tok => {
+    expanded.add(tok);
+    const mapped = KEYWORD_MAP[tok];
+    if (mapped) mapped.forEach(t => expanded.add(t));
+  });
+  return { tokens, expanded };
+}
+
+function tagSearch(expanded) {
+  return FAQ
+    .map(item => ({ item, hits: item.tags.filter(t => expanded.has(t)).length }))
+    .filter(s => s.hits > 0)
+    .sort((a, b) => b.hits - a.hits);
+}
+
+function similaritySearch(query) {
+  const q2 = ngrams(query, 2), q3 = ngrams(query, 3);
+  let best = { score: 0, item: null };
+  FAQ.forEach(item => {
+    const kwHits = item.tags.filter(t => query.toLowerCase().includes(t)).length;
+    let aliasScore = 0;
+    item.aliases.forEach(alias => {
+      const s = jaccard(q2, ngrams(alias, 2)) * 0.6 + jaccard(q3, ngrams(alias, 3)) * 0.4;
+      if (s > aliasScore) aliasScore = s;
+    });
+    const origScore = jaccard(q2, ngrams(item.question, 2));
+    const total = kwHits * 0.15 + aliasScore * 0.55 + origScore * 0.30;
+    if (total > best.score) best = { score: total, item };
+  });
+  return best.score > 0.06 ? best.item : null;
+}
+
+function getResponse(query) {
+  const { tokens, expanded } = expandQuery(query);
+  const isKeyword = tokens.length <= 2;
+
+  if (isKeyword && expanded.size > 0) {
+    const results = tagSearch(expanded);
+    if (results.length >= 2) {
+      // 매칭된 모든 항목을 관련도 순으로 보여줘 사용자가 직접 선택
+      return { mode:"multi", items: results.map(r => r.item), keyword: query.trim() };
+    }
+    if (results.length === 1) return { mode:"single", item: results[0].item };
+  }
+  const item = similaritySearch(query);
+  if (item) return { mode:"single", item };
+  return { mode:"none" };
+}
+
+/* ── 렌더링 ─────────────────────────────────────────── */
+function escH(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
+
+function formatAnswer(text) {
+  // 테이블 HTML은 그대로 통과
+  if (text.includes("<table>")) {
+    let t = text.replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>");
+    const parts = t.split(/(<table>[\s\S]*?<\/table>)/g);
+    return parts.map(part => {
+      if (part.startsWith("<table>")) return part;
+      return formatPlain(part);
+    }).join("");
+  }
+  return formatPlain(text);
+}
+
+function formatPlain(text) {
+  let t = escH(text).replace(/\*\*(.*?)\*\*/g,"<strong>$1</strong>");
+  return t.split(/\n\n+/).map(para => {
+    const lines = para.split("\n");
+    const isList = lines.some(l => /^[-•]\s|^\d+\.\s/.test(l));
+    if (isList) {
+      return "<ul>" + lines.filter(l=>l.trim())
+        .map(l=>"<li>"+l.replace(/^[-•]\s|^\d+\.\s/,"")+"</li>").join("") + "</ul>";
+    }
+    return "<p>" + lines.join("<br>") + "</p>";
+  }).join("");
+}
+
+const chatMessages    = document.getElementById("chat-messages");
+const chatArea        = document.getElementById("chat-area");
+const typingIndicator = document.getElementById("typing-indicator");
+const userInput       = document.getElementById("user-input");
+const sendBtn         = document.getElementById("send-btn");
+
+function appendBotBubble(html, showLinks) {
+  const wrap = document.createElement("div"); wrap.className = "message assistant";
+  const av   = document.createElement("div"); av.className = "avatar"; av.textContent = "IN";
+  const bub  = document.createElement("div"); bub.className = "bubble"; bub.innerHTML = html;
+  wrap.appendChild(av); wrap.appendChild(bub);
+  chatMessages.insertBefore(wrap, typingIndicator);
+
+  if (showLinks) {
+    const footer = document.createElement("div"); footer.className = "message-footer";
+    const label  = document.createElement("span"); label.className = "product-links-label";
+    label.textContent = "관련 제품 바로가기";
+    const links  = document.createElement("div"); links.className = "product-links";
+    Object.entries(PRODUCT_LINKS).forEach(([name, url]) => {
+      const a = document.createElement("a");
+      a.href=url; a.target="_blank"; a.rel="noopener noreferrer";
+      a.className="product-link"; a.textContent=name;
+      links.appendChild(a);
+    });
+    footer.appendChild(label); footer.appendChild(links);
+    chatMessages.insertBefore(footer, typingIndicator);
+  }
+  scrollBottom();
+  return bub; // 이벤트 바인딩용 반환
+}
+
+function renderSingle(item) {
+  appendBotBubble(formatAnswer(item.answer), true);
+}
+
+/* 명확화 질문 — 여러 결과일 때 카테고리별 그룹 선택지 제시 */
+function renderClarify(keyword, items) {
+  const bub = appendBotBubble("", false);
+
+  const intro = document.createElement("p");
+  intro.className = "clarify-intro";
+  intro.innerHTML = `<strong>'${escH(keyword)}'</strong> 관련 주제가 있어요.<br>어떤 내용이 궁금하신가요?`;
+  bub.appendChild(intro);
+
+  // 카테고리별 그룹핑 (등장 순서 유지)
+  const groups = new Map();
+  items.forEach(item => {
+    if (!groups.has(item.category)) groups.set(item.category, []);
+    groups.get(item.category).push(item);
+  });
+
+  const isMultiCat = groups.size > 1;
+
+  function makeBtn(item) {
+    const btn = document.createElement("button");
+    btn.className = "clarify-btn";
+    btn.textContent = item.question;
+    btn.addEventListener("click", async () => {
+      bub.querySelectorAll(".clarify-btn").forEach(b => b.disabled = true);
+      btn.style.background = "var(--primary)";
+      btn.style.color = "#fff";
+      btn.style.borderColor = "var(--primary)";
+      appendUser(item.question);
+      isTyping = true; sendBtn.disabled = true;
+      typingIndicator.style.display = "flex"; scrollBottom();
+      await new Promise(r => setTimeout(r, 350 + Math.random() * 300));
+      typingIndicator.style.display = "none";
+      isTyping = false; sendBtn.disabled = false;
+      renderSingle(item);
+    });
+    return btn;
+  }
+
+  groups.forEach((catItems, cat) => {
+    // 카테고리가 2개 이상일 때만 헤더 표시
+    if (isMultiCat) {
+      const header = document.createElement("div");
+      header.className = "clarify-cat-header";
+      header.textContent = cat;
+      bub.appendChild(header);
+    }
+    const opts = document.createElement("div");
+    opts.className = "clarify-options";
+    catItems.forEach(item => opts.appendChild(makeBtn(item)));
+    bub.appendChild(opts);
+  });
+
+  scrollBottom();
+}
+
+function renderNone() {
+  appendBotBubble(
+    `<p>해당 내용은 FAQ에서 찾을 수 없었습니다.</p>` +
+    `<p>다른 표현으로 질문하거나, 아래 키워드를 입력해 보세요.</p>` +
+    `<p><strong>재료:</strong> 석재, 포세린, 흡수율, 외부, 논슬립, 동결융해, 내구성, 열팽창<br>` +
+    `<strong>습식:</strong> 강도, 접착제, 등급, 줄눈, 구배, 온도, 교반, 범위, 두께, 방수<br>` +
+    `<strong>건식:</strong> 각관, 장선, 스페이서, 패드, 클립, 고정, 조인트, 이음, 실리콘</p>`,
+    false
+  );
+}
+
+function appendUser(text) {
+  const wrap = document.createElement("div"); wrap.className = "message user";
+  const bub  = document.createElement("div"); bub.className = "bubble"; bub.textContent = text;
+  wrap.appendChild(bub);
+  chatMessages.insertBefore(wrap, typingIndicator);
+  scrollBottom();
+}
+
+function scrollBottom() { requestAnimationFrame(() => { chatArea.scrollTop = chatArea.scrollHeight; }); }
+
+/* ── 전송 ──────────────────────────────────────────── */
+let isTyping = false;
+
+async function handleSend() {
+  const msg = userInput.value.trim();
+  if (!msg || isTyping) return;
+  userInput.value = ""; autoResize();
+  appendUser(msg);
+
+  isTyping = true; sendBtn.disabled = true;
+  typingIndicator.style.display = "flex"; scrollBottom();
+  await new Promise(r => setTimeout(r, 400 + Math.random() * 400));
+  typingIndicator.style.display = "none";
+  isTyping = false; sendBtn.disabled = false;
+
+  const result = getResponse(msg);
+  if      (result.mode === "multi")  renderClarify(result.keyword, result.items);
+  else if (result.mode === "single") renderSingle(result.item);
+  else                               renderNone();
+}
+
+function autoResize() {
+  userInput.style.height = "auto";
+  userInput.style.height = Math.min(userInput.scrollHeight, 120) + "px";
+}
+
+/* ── 빠른 질문 버튼 ─────────────────────────────────── */
+function renderQuick() {
+  const cats = [...new Set(FAQ.map(f => f.category))];
+  const qc   = document.getElementById("quick-categories");
+  const qq   = document.getElementById("quick-questions");
+  qc.innerHTML = ""; qq.innerHTML = "";
+  cats.forEach((cat, i) => {
+    const btn = document.createElement("button");
+    btn.className = "category-btn" + (i === 0 ? " active" : "");
+    btn.textContent = cat;
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".category-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active"); renderQBtns(cat);
+    });
+    qc.appendChild(btn);
+  });
+  renderQBtns(cats[0]);
+}
+
+function renderQBtns(cat) {
+  const qq = document.getElementById("quick-questions");
+  qq.innerHTML = "";
+  FAQ.filter(f => f.category === cat).slice(0, 4).forEach(({ question }) => {
+    const btn = document.createElement("button");
+    btn.className = "quick-q-btn"; btn.textContent = question; btn.title = question;
+    btn.addEventListener("click", () => { userInput.value = question; autoResize(); handleSend(); });
+    qq.appendChild(btn);
+  });
+}
+
+/* ── 이벤트 ─────────────────────────────────────────── */
+sendBtn.addEventListener("click", handleSend);
+userInput.addEventListener("keydown", e => { if (e.key==="Enter"&&!e.shiftKey) { e.preventDefault(); handleSend(); } });
+userInput.addEventListener("input", autoResize);
+
+/* ── 시작 ──────────────────────────────────────────── */
+renderQuick();
+appendBotBubble(
+  `<p>안녕하세요! 포세린 타일 시공 Q&A 챗봇입니다 👋</p>` +
+  `<p>짧은 <strong>키워드</strong>를 입력하면 관련 Q&A를 모두 보여드리고,<br>` +
+  `<strong>질문 형태</strong>로 입력하면 가장 관련 높은 답변을 드립니다.</p>` +
+  `<p><strong>재료:</strong> 석재 · 외부 · 흡수율<br>` +
+  `<strong>습식:</strong> 강도 · 접착제 · 등급 · 줄눈 · 구배 · 온도 · 교반 · 범위 · 두께<br>` +
+  `<strong>건식:</strong> 각관 · 장선 · 스페이서 · 패드 · 클립 · 고정 · 조인트</p>`,
+  true
+);
+</script>
 </body>
 </html>
