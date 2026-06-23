@@ -20,7 +20,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
 /* Header */
 .app-header { height: 60px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: #fff; flex-shrink: 0; }
 .header-brand { display: flex; align-items: center; gap: 10px; }
-.brand-icon { width: 44px; height: 36px; border-radius: var(--radius-sm); background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 9px; letter-spacing: .4px; line-height: 1.25; text-align: center; }
+.brand-icon { width: 58px; height: 36px; border-radius: var(--radius-sm); background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 11px; letter-spacing: .5px; }
 .brand-name { font-weight: 700; font-size: 16px; }
 .brand-subtitle { font-size: 11px; opacity: .75; display: block; }
 .mode-badge { padding: 4px 12px; border-radius: 99px; background: rgba(34,197,94,.25); color: #86efac; font-size: 11px; font-weight: 700; }
@@ -41,7 +41,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
 .message { display: flex; gap: 10px; animation: fadeIn .2s ease; }
 @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
 .message.assistant { align-items: flex-start; }
-.message.assistant .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #fce4ec 0%, #ffd6e0 100%); border: 1.5px solid #f8bbd0; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; margin-top: 2px; line-height: 1; }
+.message.assistant .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #fce4ec 0%, #e3f0ff 100%); border: 1.5px solid #f8bbd0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px; overflow: hidden; }
 .message.assistant .bubble { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg); padding: 12px 16px; box-shadow: var(--shadow-sm); max-width: calc(100% - 42px); }
 .message.user { flex-direction: row-reverse; align-items: flex-end; }
 .message.user .bubble { background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%); border-radius: var(--radius-lg) var(--radius-lg) 0 var(--radius-lg); padding: 12px 16px; color: #fff; max-width: 75%; word-break: break-word; }
@@ -94,7 +94,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
 
 /* Typing */
 .typing-indicator { display: flex; align-items: center; gap: 10px; }
-.typing-indicator .avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #fce4ec 0%, #ffd6e0 100%); border: 1.5px solid #f8bbd0; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; line-height: 1; }
+.typing-indicator .avatar { width: 38px; height: 38px; border-radius: 50%; background: linear-gradient(135deg, #fce4ec 0%, #e3f0ff 100%); border: 1.5px solid #f8bbd0; display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .typing-dots { background: var(--bg-card); border: 1px solid var(--border); border-radius: 0 var(--radius-lg) var(--radius-lg) var(--radius-lg); padding: 12px 16px; display: flex; gap: 5px; align-items: center; }
 .typing-dots span { width: 7px; height: 7px; border-radius: 50%; background: var(--primary-muted); display: inline-block; animation: bounce 1.2s infinite; }
 .typing-dots span:nth-child(2) { animation-delay: .2s; }
@@ -118,7 +118,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
 <div class="app-wrapper">
   <header class="app-header">
     <div class="header-brand">
-      <div class="brand-icon">INO<br>EX</div>
+      <div class="brand-icon">INO EX</div>
       <div style="display:flex;flex-direction:column;line-height:1.2;">
         <span class="brand-name">포세린 타일</span>
         <span class="brand-subtitle">시공 Q&A 챗봇</span>
@@ -135,7 +135,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
   <main class="chat-area" id="chat-area">
     <div id="chat-messages">
       <div class="typing-indicator" id="typing-indicator" style="display:none">
-        <div class="avatar">💁‍♀️</div>
+        <div class="avatar" id="typing-avatar"></div>
         <div class="typing-dots"><span></span><span></span><span></span></div>
       </div>
     </div>
@@ -160,6 +160,37 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans KR
    키워드 입력: 관련 Q&A 다건 카드
    질문 입력:   최적 단일 답변
    ===================================================== */
+
+/* ── 헤드셋 착용 여성 아바타 SVG ─────────────────────── */
+const AVATAR_SVG = `<svg viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg" width="32" height="32">
+  <!-- 얼굴 -->
+  <circle cx="18" cy="21" r="10" fill="#FFCBA4"/>
+  <!-- 머리카락 상단 -->
+  <path d="M8 19 Q8.5 7 18 7 Q27.5 7 28 19 Q25 10 18 10 Q11 10 8 19Z" fill="#5D4037"/>
+  <!-- 머리카락 옆 -->
+  <ellipse cx="8" cy="20" rx="3.2" ry="6" fill="#5D4037"/>
+  <ellipse cx="28" cy="20" rx="3.2" ry="6" fill="#5D4037"/>
+  <!-- 눈 -->
+  <ellipse cx="14" cy="20.5" rx="1.8" ry="1.9" fill="#2C1810"/>
+  <ellipse cx="22" cy="20.5" rx="1.8" ry="1.9" fill="#2C1810"/>
+  <circle cx="14.7" cy="19.8" r="0.6" fill="white"/>
+  <circle cx="22.7" cy="19.8" r="0.6" fill="white"/>
+  <!-- 볼터치 -->
+  <ellipse cx="11.5" cy="23.5" rx="2.5" ry="1.4" fill="#FFB3C1" opacity="0.7"/>
+  <ellipse cx="24.5" cy="23.5" rx="2.5" ry="1.4" fill="#FFB3C1" opacity="0.7"/>
+  <!-- 미소 -->
+  <path d="M14.5 26 Q18 29.5 21.5 26" stroke="#E57373" stroke-width="1.4" fill="none" stroke-linecap="round"/>
+  <!-- 헤드셋 밴드 -->
+  <path d="M8 17 Q18 6 28 17" stroke="#37474F" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- 왼쪽 이어컵 -->
+  <rect x="4" y="15" width="6" height="10" rx="3" fill="#546E7A"/>
+  <!-- 오른쪽 이어컵 -->
+  <rect x="26" y="15" width="6" height="10" rx="3" fill="#546E7A"/>
+  <!-- 마이크 암 -->
+  <path d="M5.5 22.5 Q3.5 24 3.5 26.5" stroke="#546E7A" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- 마이크 캡슐 -->
+  <ellipse cx="3.5" cy="28" rx="2.2" ry="1.5" fill="#546E7A"/>
+</svg>`;
 
 const PRODUCT_LINKS = {
   "IRIS tile":   "https://www.ino-ex.com/PRODUCT",
@@ -597,7 +628,7 @@ const sendBtn         = document.getElementById("send-btn");
 
 function appendBotBubble(html, showLinks) {
   const wrap = document.createElement("div"); wrap.className = "message assistant";
-  const av   = document.createElement("div"); av.className = "avatar"; av.textContent = "💁‍♀️";
+  const av   = document.createElement("div"); av.className = "avatar"; av.innerHTML = AVATAR_SVG;
   const bub  = document.createElement("div"); bub.className = "bubble"; bub.innerHTML = html;
   wrap.appendChild(av); wrap.appendChild(bub);
   chatMessages.insertBefore(wrap, typingIndicator);
@@ -762,6 +793,7 @@ userInput.addEventListener("keydown", e => { if (e.key==="Enter"&&!e.shiftKey) {
 userInput.addEventListener("input", autoResize);
 
 /* ── 시작 ──────────────────────────────────────────── */
+document.getElementById("typing-avatar").innerHTML = AVATAR_SVG;
 renderQuick();
 appendBotBubble(
   `<p>안녕하세요! 포세린 타일 시공 Q&A 챗봇입니다 👋</p>` +
